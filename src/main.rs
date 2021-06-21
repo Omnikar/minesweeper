@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
     let mut stdout = BufWriter::new(io::stdout().into_raw_mode()?);
 
     macro_rules! render {
-        () => {
+        (board) => {
             write!(
                 stdout,
                 "{}{}",
@@ -22,11 +22,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
                 termion::cursor::Goto(1, 1),
             )?;
             board.draw(&mut stdout)?;
-            write!(stdout, "\n\r{}", board.flags_left)?;
+            write!(stdout, "\n\x1b[96m\x1b[s?\x1b[0m\r{} flags left", board.flags_left)?;
+        };
+        (help) => {
+            write!(
+                stdout,
+                "{}{}",
+                termion::clear::All,
+                termion::cursor::Goto(1, 1)
+            )?;
+            write!(
+                stdout,
+                "\u{2190}\u{2193}\u{2191}\u{2192}/hjkl - move cursor\n\r"
+            )?;
+            write!(stdout, "        d - dig\n\r")?;
+            write!(stdout, "        f - flag\n\r")?;
+            stdout.flush()?;
+            continue;
         };
     }
 
-    render!();
+    render!(board);
     write!(
         stdout,
         "{}",
@@ -42,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
         {
             Key::Ctrl('c') =>
             {
-                render!();
+                render!(board);
                 write!(stdout, "\n\r")?;
                 break;
             }
@@ -56,14 +72,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
             }
             Key::Char('j') | Key::Down =>
             {
-                csr_pos.1 = (csr_pos.1 + 1).clamp(1, board.rows() as u16)
+                csr_pos.1 = (csr_pos.1 + 1).clamp(1, (board.rows() as u16) + 1)
             }
             Key::Char('k') | Key::Up =>
             {
-                csr_pos.1 = (csr_pos.1 - 1).clamp(1, board.rows() as u16)
+                csr_pos.1 = (csr_pos.1 - 1).clamp(1, (board.rows() as u16) + 1)
             }
-            Key::Char('d') =>
+            Key::Char('d') | Key::Char(' ') =>
             {
+                if csr_pos.1 > board.rows() as u16
+                {
+                    render!(help);
+                }
                 if !generated
                 {
                     board.randomize();
@@ -79,15 +99,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
                 if board.open((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)
                 {
                     board.reveal();
-                    render!();
+                    render!(board);
                     write!(stdout, "\n\r")?;
                     stdout.flush()?;
                     break;
                 }
             }
-            Key::Char('f') =>
+            Key::Char('f') | Key::Char('\t') =>
             {
-                board.toggle_flag((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)
+                if csr_pos.1 <= board.rows() as u16
+                {
+                    board.toggle_flag((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)
+                }
+            }
+            Key::Char('?') =>
+            {
+                render!(help);
             }
             _ =>
             {}
@@ -97,18 +124,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
         {
             board.flag_all();
         }
-        render!();
+        render!(board);
         if board.spaces_left == board.mines()
         {
             write!(stdout, "\n\r")?;
             stdout.flush()?;
             break;
         }
-        write!(
-            stdout,
-            "{}",
-            termion::cursor::Goto(csr_pos.0 * 4 - 1, csr_pos.1 * 2)
-        )?;
+        if csr_pos.1 <= board.rows() as u16
+        {
+            write!(
+                stdout,
+                "{}",
+                termion::cursor::Goto(csr_pos.0 * 4 - 1, csr_pos.1 * 2)
+            )?;
+        }
+        else
+        {
+            write!(stdout, "\x1b[u")?;
+        }
         stdout.flush()?;
     }
 
