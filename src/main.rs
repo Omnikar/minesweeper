@@ -1,17 +1,93 @@
 #[allow(dead_code)]
 mod board;
 
-use board::{difficulty, BoardTrait};
+use board::{BoardTrait, CellTrait};
 use std::io::{self, BufWriter, Write};
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
 fn main() -> Result<(), Box<dyn std::error::Error>>
 {
-    let mut board = difficulty::Beginner::blank();
-    let mut csr_pos: (u16, u16) = (1, 1);
-
     let stdin = io::stdin();
     let mut stdout = BufWriter::new(io::stdout().into_raw_mode()?);
+
+    macro_rules! run_diff {
+        ($diff:ident) => {
+            run(crate::board::difficulty::$diff::blank(), stdout)
+        };
+    }
+
+    let diffs = [
+        "Beginner",
+        "Intermediate",
+        "Expert",
+    ];
+    let mut cursor_pos: usize = 0;
+
+    macro_rules! render {
+        () => {
+            write!(
+                stdout,
+                "{}{}",
+                termion::clear::All,
+                termion::cursor::Goto(1, 1),
+            )?;
+            for (i, &diff) in diffs.iter().enumerate()
+            {
+                if cursor_pos == i
+                {
+                    write!(stdout, "\x1b[96m>\x1b[0m {}\n\r", diff)?;
+                }
+                else
+                {
+                    write!(stdout, "  {}\n\r", diff)?;
+                }
+            }
+        };
+    }
+
+    write!(
+        stdout,
+        "{}",
+        termion::cursor::Hide,
+    )?;
+    render!();
+    stdout.flush()?;
+
+    for k in stdin.keys()
+    {
+        match k?
+        {
+            Key::Ctrl('c') =>
+            {
+                write!(stdout, "{}", termion::cursor::Show)?;
+                return Ok(());
+            }
+            Key::Char('j') | Key::Down => cursor_pos = (cursor_pos + 1).min(diffs.len() - 1),
+            Key::Char('k') | Key::Up => cursor_pos = cursor_pos.checked_sub(1).unwrap_or(cursor_pos),
+            Key::Char('d') | Key::Char(' ') => return match cursor_pos
+            {
+                0 => run_diff!(Beginner),
+                1 => run_diff!(Medium),
+                2 => run_diff!(Expert),
+                _ => panic!("This is a bug."),
+            },
+            _ => continue,
+        }
+
+        render!();
+        stdout.flush()?;
+    }
+
+    run_diff!(Beginner)
+}
+
+fn run<B: BoardTrait>(mut board: B, mut stdout: impl Write) -> Result<(), Box<dyn std::error::Error>>
+where
+    B::Output: CellTrait,
+{
+    write!(stdout, "{}", termion::cursor::Show)?;
+
+    let mut csr_pos: (u16, u16) = (1, 1);
 
     macro_rules! render {
         (board) => {
@@ -22,7 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
                 termion::cursor::Goto(1, 1),
             )?;
             board.draw(&mut stdout)?;
-            write!(stdout, "\n\x1b[96m\x1b[s?\x1b[0m\r{} flags left", board.flags_left)?;
+            write!(stdout, "\n\x1b[96m\x1b[s?\x1b[0m\r{} flags left", board.flags_left())?;
         };
         (help) => {
             write!(
@@ -52,9 +128,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 
     let mut generated = false;
 
-    for c in stdin.keys()
+    let stdin = io::stdin();
+
+    for k in stdin.keys()
     {
-        match c?
+        match k?
         {
             Key::Ctrl('c') =>
             {
@@ -88,7 +166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
                 {
                     board.randomize();
                     board.set_nums();
-                    while board[[(csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize]].content
+                    while board[[(csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize]].content()
                         != 0
                     {
                         board.randomize();
@@ -116,16 +194,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
             {
                 render!(help);
             }
-            _ =>
-            {}
+            _ => continue,
         }
 
-        if board.spaces_left == board.mines()
+        if board.spaces_left() == board.mines()
         {
             board.flag_all();
         }
         render!(board);
-        if board.spaces_left == board.mines()
+        if board.spaces_left() == board.mines()
         {
             write!(stdout, "\n\r")?;
             stdout.flush()?;

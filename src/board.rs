@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 use rand::Rng;
-use std::ops;
+use std::ops::{Index, IndexMut};
 
 const UL: &str = "\u{250F}";
 const UR: &str = "\u{2513}";
@@ -20,9 +20,22 @@ const FLAG: &str = "\x1b[33m\u{2691}\x1b[0m";
 
 pub struct Cell
 {
-    pub content: u8,
+    content: u8,
     opened: bool,
     flagged: bool,
+}
+
+pub trait CellTrait
+{
+    fn content(&self) -> u8;
+}
+
+impl CellTrait for Cell
+{
+    fn content(&self) -> u8
+    {
+        self.content
+    }
 }
 
 impl Cell
@@ -56,33 +69,33 @@ impl std::fmt::Debug for Cell
 pub struct Board<const ROWS: usize, const COLUMNS: usize, const MINES: usize>
 {
     board: ArrayVec<ArrayVec<Cell, COLUMNS>, ROWS>,
-    pub flags_left: usize,
-    pub spaces_left: usize,
+    flags_left: usize,
+    spaces_left: usize,
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, COLUMNS, MINES>
+pub trait BoardTrait: Index<[usize; 2]> + IndexMut<[usize; 2]>
+where
+    Self::Output: CellTrait,
 {
-    pub fn blank() -> Self
-    {
-        let mut new = Self {
-            board: ArrayVec::new(),
-            flags_left: MINES,
-            spaces_left: ROWS * COLUMNS,
-        };
+    fn clear(&mut self);
+    fn randomize(&mut self);
+    fn set_nums(&mut self);
+    fn draw(&self, buf: &mut impl std::io::Write) -> std::io::Result<()>;
+    fn open(&mut self, r: usize, c: usize) -> bool;
+    fn toggle_flag(&mut self, r: usize, c: usize);
+    fn reveal(&mut self);
+    fn flag_all(&mut self);
+    fn rows(&self) -> usize;
+    fn columns(&self) -> usize;
+    fn mines(&self) -> usize;
+    fn flags_left(&self) -> usize;
+    fn spaces_left(&self) -> usize;
+}
 
-        for r in 0..ROWS
-        {
-            new.board.push(ArrayVec::new());
-            for _ in 0..COLUMNS
-            {
-                new.board[r].push(Cell::default());
-            }
-        }
-
-        new
-    }
-
-    pub fn clear(&mut self)
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
+    for Board<ROWS, COLUMNS, MINES>
+{
+    fn clear(&mut self)
     {
         for r in 0..ROWS
         {
@@ -94,7 +107,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         self.refresh_vals();
     }
 
-    pub fn randomize(&mut self)
+    fn randomize(&mut self)
     {
         self.clear();
         let mut mines = MINES.min(ROWS * COLUMNS);
@@ -111,7 +124,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         self.refresh_vals();
     }
 
-    pub fn set_nums(&mut self)
+    fn set_nums(&mut self)
     {
         for r in 0..ROWS
         {
@@ -137,7 +150,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         }
     }
 
-    pub fn draw<S: std::io::Write>(&self, buf: &mut S) -> Result<(), std::io::Error>
+    fn draw(&self, buf: &mut impl std::io::Write) -> std::io::Result<()>
     {
         macro_rules! n {
             () => (1);
@@ -222,7 +235,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         Ok(())
     }
 
-    pub fn open(&mut self, r: usize, c: usize) -> bool
+    fn open(&mut self, r: usize, c: usize) -> bool
     {
         if self[[r, c]].flagged
         {
@@ -262,7 +275,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         return false;
     }
 
-    pub fn toggle_flag(&mut self, r: usize, c: usize)
+    fn toggle_flag(&mut self, r: usize, c: usize)
     {
         if !self[[r, c]].opened
         {
@@ -301,7 +314,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         }
     }
 
-    pub fn reveal(&mut self)
+    fn reveal(&mut self)
     {
         for r in 0..ROWS
         {
@@ -313,7 +326,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         self.refresh_vals();
     }
 
-    pub fn flag_all(&mut self)
+    fn flag_all(&mut self)
     {
         for r in 0..ROWS
         {
@@ -326,6 +339,50 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
             }
         }
         self.refresh_vals();
+    }
+
+    fn rows(&self) -> usize
+    {
+        ROWS
+    }
+    fn columns(&self) -> usize
+    {
+        COLUMNS
+    }
+    fn mines(&self) -> usize
+    {
+        MINES
+    }
+    fn flags_left(&self) -> usize
+    {
+        self.flags_left
+    }
+    fn spaces_left(&self) -> usize
+    {
+        self.spaces_left
+    }
+}
+
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, COLUMNS, MINES>
+{
+    pub fn blank() -> Self
+    {
+        let mut new = Self {
+            board: ArrayVec::new(),
+            flags_left: MINES,
+            spaces_left: ROWS * COLUMNS,
+        };
+
+        for r in 0..ROWS
+        {
+            new.board.push(ArrayVec::new());
+            for _ in 0..COLUMNS
+            {
+                new.board[r].push(Cell::default());
+            }
+        }
+
+        new
     }
 
     fn refresh_vals(&mut self)
@@ -378,7 +435,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Default
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> ops::Index<[usize; 2]>
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Index<[usize; 2]>
     for Board<ROWS, COLUMNS, MINES>
 {
     type Output = Cell;
@@ -389,37 +446,13 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> ops::Index<[us
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> ops::IndexMut<[usize; 2]>
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> IndexMut<[usize; 2]>
     for Board<ROWS, COLUMNS, MINES>
 {
     fn index_mut(&mut self, idx: [usize; 2]) -> &mut Self::Output
     {
         &mut self.board[idx[0]][idx[1]]
     }
-}
-
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
-    for Board<ROWS, COLUMNS, MINES>
-{
-    fn rows(&self) -> usize
-    {
-        ROWS
-    }
-    fn columns(&self) -> usize
-    {
-        COLUMNS
-    }
-    fn mines(&self) -> usize
-    {
-        MINES
-    }
-}
-
-pub trait BoardTrait
-{
-    fn rows(&self) -> usize;
-    fn columns(&self) -> usize;
-    fn mines(&self) -> usize;
 }
 
 pub mod difficulty
