@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 mod board;
 
-use board::{BoardTrait, CellTrait};
+use board::{BoardTrait, Cell};
 use std::io::{self, BufWriter, Write};
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
@@ -12,15 +12,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 
     macro_rules! run_diff {
         ($diff:ident) => {
-            run(crate::board::difficulty::$diff::blank(), stdout)
+            run(Box::new(crate::board::difficulty::$diff::blank()), stdout)
         };
     }
 
-    let diffs = [
-        "Beginner",
-        "Intermediate",
-        "Expert",
-    ];
+    let diffs = ["Beginner", "Intermediate", "Expert"];
     let mut cursor_pos: usize = 0;
 
     macro_rules! render {
@@ -45,11 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
         };
     }
 
-    write!(
-        stdout,
-        "{}",
-        termion::cursor::Hide,
-    )?;
+    write!(stdout, "{}", termion::cursor::Hide,)?;
     render!();
     stdout.flush()?;
 
@@ -63,14 +55,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
                 return Ok(());
             }
             Key::Char('j') | Key::Down => cursor_pos = (cursor_pos + 1).min(diffs.len() - 1),
-            Key::Char('k') | Key::Up => cursor_pos = cursor_pos.checked_sub(1).unwrap_or(cursor_pos),
-            Key::Char('d') | Key::Char(' ') => return match cursor_pos
+            Key::Char('k') | Key::Up =>
             {
-                0 => run_diff!(Beginner),
-                1 => run_diff!(Medium),
-                2 => run_diff!(Expert),
-                _ => panic!("This is a bug."),
-            },
+                cursor_pos = cursor_pos.checked_sub(1).unwrap_or(cursor_pos)
+            }
+            Key::Char('d') | Key::Char(' ') =>
+            {
+                return match cursor_pos
+                {
+                    0 => run_diff!(Beginner),
+                    1 => run_diff!(Medium),
+                    2 => run_diff!(Expert),
+                    _ => panic!("This is a bug."),
+                }
+            }
             _ => continue,
         }
 
@@ -81,9 +79,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
     run_diff!(Beginner)
 }
 
-fn run<B: BoardTrait>(mut board: B, mut stdout: impl Write) -> Result<(), Box<dyn std::error::Error>>
-where
-    B::Output: CellTrait,
+fn run(
+    mut board: Box<dyn BoardTrait<Output = Cell>>,
+    mut stdout: impl Write,
+) -> Result<(), Box<dyn std::error::Error>>
 {
     write!(stdout, "{}", termion::cursor::Show)?;
 

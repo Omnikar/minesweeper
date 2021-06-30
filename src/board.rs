@@ -25,14 +25,9 @@ pub struct Cell
     flagged: bool,
 }
 
-pub trait CellTrait
+impl Cell
 {
-    fn content(&self) -> u8;
-}
-
-impl CellTrait for Cell
-{
-    fn content(&self) -> u8
+    pub fn content(&self) -> u8
     {
         self.content
     }
@@ -74,13 +69,11 @@ pub struct Board<const ROWS: usize, const COLUMNS: usize, const MINES: usize>
 }
 
 pub trait BoardTrait: Index<[usize; 2]> + IndexMut<[usize; 2]>
-where
-    Self::Output: CellTrait,
 {
     fn clear(&mut self);
     fn randomize(&mut self);
     fn set_nums(&mut self);
-    fn draw(&self, buf: &mut impl std::io::Write) -> std::io::Result<()>;
+    fn draw(&self, buf: &mut dyn std::io::Write) -> std::io::Result<()>;
     fn open(&mut self, r: usize, c: usize) -> bool;
     fn toggle_flag(&mut self, r: usize, c: usize);
     fn reveal(&mut self);
@@ -150,7 +143,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
         }
     }
 
-    fn draw(&self, buf: &mut impl std::io::Write) -> std::io::Result<()>
+    fn draw(&self, buf: &mut dyn std::io::Write) -> std::io::Result<()>
     {
         macro_rules! n {
             () => (1);
