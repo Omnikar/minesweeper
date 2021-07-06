@@ -79,8 +79,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
     run_diff!(Beginner)
 }
 
-fn run<const ROWS: usize, const COLUMNS: usize, const MINES: usize>(
-    mut board: Board<ROWS, COLUMNS, MINES>,
+fn run<const ROWS: usize, const COLS: usize, const MINES: usize>(
+    mut board: Board<ROWS, COLS, MINES>,
     mut stdout: impl Write,
 ) -> Result<(), Box<dyn std::error::Error>>
 {
@@ -141,30 +141,30 @@ fn run<const ROWS: usize, const COLUMNS: usize, const MINES: usize>(
             }
             Key::Char('l') | Key::Right =>
             {
-                csr_pos.0 = (csr_pos.0 + 1).clamp(1, board.columns() as u16)
+                csr_pos.0 = (csr_pos.0 + 1).clamp(1, COLS as u16)
             }
             Key::Char('h') | Key::Left =>
             {
-                csr_pos.0 = (csr_pos.0 - 1).clamp(1, board.columns() as u16)
+                csr_pos.0 = (csr_pos.0 - 1).clamp(1, COLS as u16)
             }
             Key::Char('j') | Key::Down =>
             {
-                csr_pos.1 = (csr_pos.1 + 1).clamp(1, (board.rows() as u16) + 1)
+                csr_pos.1 = (csr_pos.1 + 1).clamp(1, (ROWS as u16) + 1)
             }
             Key::Char('k') | Key::Up =>
             {
-                csr_pos.1 = (csr_pos.1 - 1).clamp(1, (board.rows() as u16) + 1)
+                csr_pos.1 = (csr_pos.1 - 1).clamp(1, (ROWS as u16) + 1)
             }
             Key::Char('d') | Key::Char(' ') =>
             {
-                if csr_pos.1 > board.rows() as u16
+                if csr_pos.1 > ROWS as u16
                 {
                     render!(help);
                 }
                 if !generated
                 {
                     let b_pos = ((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize);
-                    let mut avoid = Board::<ROWS, COLUMNS, MINES>::adjs(b_pos.0, b_pos.1);
+                    let mut avoid = Board::<ROWS, COLS, MINES>::adjs(b_pos.0, b_pos.1);
                     avoid.push(b_pos);
                     board.randomize(&avoid);
                     board.set_nums();
@@ -181,7 +181,7 @@ fn run<const ROWS: usize, const COLUMNS: usize, const MINES: usize>(
             }
             Key::Char('f') | Key::Char('\t') =>
             {
-                if csr_pos.1 <= board.rows() as u16
+                if csr_pos.1 <= ROWS as u16
                 {
                     board.toggle_flag((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)
                 }
@@ -193,18 +193,18 @@ fn run<const ROWS: usize, const COLUMNS: usize, const MINES: usize>(
             _ => continue,
         }
 
-        if board.spaces_left() == board.mines()
+        if board.spaces_left() == MINES
         {
             board.flag_all();
         }
         render!(board);
-        if board.spaces_left() == board.mines()
+        if board.spaces_left() == MINES
         {
             write!(stdout, "\n\r")?;
             stdout.flush()?;
             break;
         }
-        if csr_pos.1 <= board.rows() as u16
+        if csr_pos.1 <= ROWS as u16
         {
             write!(
                 stdout,

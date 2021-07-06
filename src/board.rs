@@ -61,20 +61,20 @@ impl std::fmt::Debug for Cell
     }
 }
 
-pub struct Board<const ROWS: usize, const COLUMNS: usize, const MINES: usize>
+pub struct Board<const ROWS: usize, const COLS: usize, const MINES: usize>
 {
-    board: ArrayVec<ArrayVec<Cell, COLUMNS>, ROWS>,
+    board: ArrayVec<ArrayVec<Cell, COLS>, ROWS>,
     flags_left: usize,
     spaces_left: usize,
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, COLUMNS, MINES>
+impl<const ROWS: usize, const COLS: usize, const MINES: usize> Board<ROWS, COLS, MINES>
 {
     pub fn clear(&mut self)
     {
         for r in 0..ROWS
         {
-            for c in 0..COLUMNS
+            for c in 0..COLS
             {
                 self[(r, c)] = Cell::default();
             }
@@ -85,11 +85,11 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     pub fn randomize(&mut self, avoid: &[(usize, usize)])
     {
         self.clear();
-        let mut mines = MINES.min(ROWS * COLUMNS);
+        let mut mines = MINES.min(ROWS * COLS);
         let mut rng = rand::thread_rng();
         while mines > 0
         {
-            let pos = (rng.gen_range(0..ROWS), rng.gen_range(0..COLUMNS));
+            let pos = (rng.gen_range(0..ROWS), rng.gen_range(0..COLS));
             if self[pos].content != 9 && !avoid.contains(&pos)
             {
                 self[pos].content = 9;
@@ -103,7 +103,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     {
         for r in 0..ROWS
         {
-            for c in 0..COLUMNS
+            for c in 0..COLS
             {
                 if self[(r, c)].content == 9
                 {
@@ -153,7 +153,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
             };
         }
         push!("\x1b[90m", UL);
-        for _ in 0..COLUMNS
+        for _ in 0..COLS
         {
             push!(HL;3, UT);
         }
@@ -161,7 +161,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         push!(UR, "\x1b[0m", "\n\r");
         for r in 0..ROWS
         {
-            for c in 0..COLUMNS
+            for c in 0..COLS
             {
                 let repr = if self[(r, c)].opened
                 {
@@ -191,7 +191,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
                 push!("\x1b[90m", VL, "\x1b[0m", " ", repr, "\x1b[90m", " ", "\x1b[0m");
             }
             push!("\x1b[90m", VL, "\n\r", LT);
-            for _ in 0..COLUMNS
+            for _ in 0..COLS
             {
                 push!(HL;3, QD);
             }
@@ -200,7 +200,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         }
         push!("\x1b[1A\x1b[90m\r");
         push!(DL);
-        for _ in 0..COLUMNS
+        for _ in 0..COLS
         {
             push!(HL;3, DT);
         }
@@ -293,7 +293,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     {
         for r in 0..ROWS
         {
-            for c in 0..COLUMNS
+            for c in 0..COLS
             {
                 self[(r, c)].opened = true;
             }
@@ -305,7 +305,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     {
         for r in 0..ROWS
         {
-            for c in 0..COLUMNS
+            for c in 0..COLS
             {
                 if !self[(r, c)].opened
                 {
@@ -316,18 +316,6 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         self.refresh_vals();
     }
 
-    pub fn rows(&self) -> usize
-    {
-        ROWS
-    }
-    pub fn columns(&self) -> usize
-    {
-        COLUMNS
-    }
-    pub fn mines(&self) -> usize
-    {
-        MINES
-    }
     pub fn flags_left(&self) -> usize
     {
         self.flags_left
@@ -342,13 +330,13 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         let mut new = Self {
             board: ArrayVec::new(),
             flags_left: MINES,
-            spaces_left: ROWS * COLUMNS,
+            spaces_left: ROWS * COLS,
         };
 
         for r in 0..ROWS
         {
             new.board.push(ArrayVec::new());
-            for _ in 0..COLUMNS
+            for _ in 0..COLS
             {
                 new.board[r].push(Cell::default());
             }
@@ -360,7 +348,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     pub fn adjs(r: usize, c: usize) -> Vec<(usize, usize)>
     {
         let mut adjs = Vec::<(usize, usize)>::new();
-        let is_valid = |pos: &(usize, usize)| pos != &(r, c) && pos.0 < ROWS && pos.1 < COLUMNS;
+        let is_valid = |pos: &(usize, usize)| pos != &(r, c) && pos.0 < ROWS && pos.1 < COLS;
         let lbndr = if r == 0 { r } else { r - 1 };
         let lbndc = if c == 0 { c } else { c - 1 };
         for adjr in lbndr..=(r + 1)
@@ -380,10 +368,10 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     fn refresh_vals(&mut self)
     {
         self.flags_left = MINES;
-        self.spaces_left = ROWS * COLUMNS;
+        self.spaces_left = ROWS * COLS;
         for r in 0..ROWS
         {
-            for c in 0..COLUMNS
+            for c in 0..COLS
             {
                 if self[(r, c)].flagged
                 {
@@ -398,8 +386,8 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Default
-    for Board<ROWS, COLUMNS, MINES>
+impl<const ROWS: usize, const COLS: usize, const MINES: usize> Default
+    for Board<ROWS, COLS, MINES>
 {
     fn default() -> Self
     {
@@ -407,8 +395,8 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Default
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Index<(usize, usize)>
-    for Board<ROWS, COLUMNS, MINES>
+impl<const ROWS: usize, const COLS: usize, const MINES: usize> Index<(usize, usize)>
+    for Board<ROWS, COLS, MINES>
 {
     type Output = Cell;
 
@@ -418,8 +406,8 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Index<(usize, 
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> IndexMut<(usize, usize)>
-    for Board<ROWS, COLUMNS, MINES>
+impl<const ROWS: usize, const COLS: usize, const MINES: usize> IndexMut<(usize, usize)>
+    for Board<ROWS, COLS, MINES>
 {
     fn index_mut(&mut self, idx: (usize, usize)) -> &mut Self::Output
     {
