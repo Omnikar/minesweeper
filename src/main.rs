@@ -163,14 +163,11 @@ fn run<const ROWS: usize, const COLUMNS: usize, const MINES: usize>(
                 }
                 if !generated
                 {
-                    board.randomize();
+                    let b_pos = ((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize);
+                    let mut avoid = Board::<ROWS, COLUMNS, MINES>::adjs(b_pos.0, b_pos.1);
+                    avoid.push(b_pos);
+                    board.randomize(&avoid);
                     board.set_nums();
-                    while board[((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)].content()
-                        != 0
-                    {
-                        board.randomize();
-                        board.set_nums();
-                    }
                     generated = true;
                 }
                 if board.open((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)

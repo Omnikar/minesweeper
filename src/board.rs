@@ -82,7 +82,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         self.refresh_vals();
     }
 
-    pub fn randomize(&mut self)
+    pub fn randomize(&mut self, avoid: &[(usize, usize)])
     {
         self.clear();
         let mut mines = MINES.min(ROWS * COLUMNS);
@@ -90,7 +90,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         while mines > 0
         {
             let pos = (rng.gen_range(0..ROWS), rng.gen_range(0..COLUMNS));
-            if self[pos].content != 9
+            if self[pos].content != 9 && !avoid.contains(&pos)
             {
                 self[pos].content = 9;
                 mines -= 1;
