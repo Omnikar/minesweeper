@@ -68,46 +68,28 @@ pub struct Board<const ROWS: usize, const COLUMNS: usize, const MINES: usize>
     spaces_left: usize,
 }
 
-pub trait BoardTrait: Index<[usize; 2]> + IndexMut<[usize; 2]>
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, COLUMNS, MINES>
 {
-    fn clear(&mut self);
-    fn randomize(&mut self);
-    fn set_nums(&mut self);
-    fn draw(&self, buf: &mut dyn std::io::Write) -> std::io::Result<()>;
-    fn open(&mut self, r: usize, c: usize) -> bool;
-    fn toggle_flag(&mut self, r: usize, c: usize);
-    fn reveal(&mut self);
-    fn flag_all(&mut self);
-    fn rows(&self) -> usize;
-    fn columns(&self) -> usize;
-    fn mines(&self) -> usize;
-    fn flags_left(&self) -> usize;
-    fn spaces_left(&self) -> usize;
-}
-
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
-    for Board<ROWS, COLUMNS, MINES>
-{
-    fn clear(&mut self)
+    pub fn clear(&mut self)
     {
         for r in 0..ROWS
         {
             for c in 0..COLUMNS
             {
-                self[[r, c]] = Cell::default();
+                self[(r, c)] = Cell::default();
             }
         }
         self.refresh_vals();
     }
 
-    fn randomize(&mut self)
+    pub fn randomize(&mut self)
     {
         self.clear();
         let mut mines = MINES.min(ROWS * COLUMNS);
         let mut rng = rand::thread_rng();
         while mines > 0
         {
-            let pos = [rng.gen_range(0..ROWS), rng.gen_range(0..COLUMNS)];
+            let pos = (rng.gen_range(0..ROWS), rng.gen_range(0..COLUMNS));
             if self[pos].content != 9
             {
                 self[pos].content = 9;
@@ -117,18 +99,18 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
         self.refresh_vals();
     }
 
-    fn set_nums(&mut self)
+    pub fn set_nums(&mut self)
     {
         for r in 0..ROWS
         {
             for c in 0..COLUMNS
             {
-                if self[[r, c]].content == 9
+                if self[(r, c)].content == 9
                 {
                     continue;
                 }
 
-                self[[r, c]].content = 0;
+                self[(r, c)].content = 0;
 
                 let adjs = Self::adjs(r, c);
 
@@ -136,14 +118,14 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
                 {
                     if self[adj].content == 9
                     {
-                        self[[r, c]].content += 1;
+                        self[(r, c)].content += 1;
                     }
                 }
             }
         }
     }
 
-    fn draw(&self, buf: &mut dyn std::io::Write) -> std::io::Result<()>
+    pub fn draw(&self, buf: &mut dyn std::io::Write) -> std::io::Result<()>
     {
         macro_rules! n {
             () => (1);
@@ -181,9 +163,9 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
         {
             for c in 0..COLUMNS
             {
-                let repr = if self[[r, c]].opened
+                let repr = if self[(r, c)].opened
                 {
-                    match self[[r, c]].content
+                    match self[(r, c)].content
                     {
                         0 => " ",
                         1 => "\x1b[94m1\x1b[0m",
@@ -198,7 +180,7 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
                         _ => " ",
                     }
                 }
-                else if self[[r, c]].flagged
+                else if self[(r, c)].flagged
                 {
                     FLAG
                 }
@@ -228,18 +210,18 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
         Ok(())
     }
 
-    fn open(&mut self, r: usize, c: usize) -> bool
+    pub fn open(&mut self, r: usize, c: usize) -> bool
     {
-        if self[[r, c]].flagged
+        if self[(r, c)].flagged
         {
             return false;
         }
-        if !self[[r, c]].opened
+        if !self[(r, c)].opened
         {
-            self[[r, c]].opened = true;
+            self[(r, c)].opened = true;
             self.spaces_left -= 1;
         }
-        if self[[r, c]].content == 9
+        if self[(r, c)].content == 9
         {
             return true;
         }
@@ -252,13 +234,13 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
                 flags += 1;
             }
         }
-        if self[[r, c]].content == flags
+        if self[(r, c)].content == flags
         {
             for &adj in adjs.iter()
             {
                 if !(self[adj].flagged || self[adj].opened)
                 {
-                    if self.open(adj[0], adj[1])
+                    if self.open(adj.0, adj.1)
                     {
                         return true;
                     }
@@ -268,18 +250,18 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
         return false;
     }
 
-    fn toggle_flag(&mut self, r: usize, c: usize)
+    pub fn toggle_flag(&mut self, r: usize, c: usize)
     {
-        if !self[[r, c]].opened
+        if !self[(r, c)].opened
         {
-            if self[[r, c]].flagged
+            if self[(r, c)].flagged
             {
-                self[[r, c]].flagged = false;
+                self[(r, c)].flagged = false;
                 self.flags_left += 1;
             }
             else if self.flags_left > 0
             {
-                self[[r, c]].flagged = true;
+                self[(r, c)].flagged = true;
                 self.flags_left -= 1;
             }
         }
@@ -294,70 +276,67 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> BoardTrait
                     closed += 1;
                 }
             }
-            if closed == self[[r, c]].content
+            if closed == self[(r, c)].content
             {
                 for &adj in adjs.iter()
                 {
                     if !(self[adj].opened || self[adj].flagged)
                     {
-                        self.toggle_flag(adj[0], adj[1]);
+                        self.toggle_flag(adj.0, adj.1);
                     }
                 }
             }
         }
     }
 
-    fn reveal(&mut self)
+    pub fn reveal(&mut self)
     {
         for r in 0..ROWS
         {
             for c in 0..COLUMNS
             {
-                self[[r, c]].opened = true;
+                self[(r, c)].opened = true;
             }
         }
         self.refresh_vals();
     }
 
-    fn flag_all(&mut self)
+    pub fn flag_all(&mut self)
     {
         for r in 0..ROWS
         {
             for c in 0..COLUMNS
             {
-                if !self[[r, c]].opened
+                if !self[(r, c)].opened
                 {
-                    self[[r, c]].flagged = true;
+                    self[(r, c)].flagged = true;
                 }
             }
         }
         self.refresh_vals();
     }
 
-    fn rows(&self) -> usize
+    pub fn rows(&self) -> usize
     {
         ROWS
     }
-    fn columns(&self) -> usize
+    pub fn columns(&self) -> usize
     {
         COLUMNS
     }
-    fn mines(&self) -> usize
+    pub fn mines(&self) -> usize
     {
         MINES
     }
-    fn flags_left(&self) -> usize
+    pub fn flags_left(&self) -> usize
     {
         self.flags_left
     }
-    fn spaces_left(&self) -> usize
+    pub fn spaces_left(&self) -> usize
     {
         self.spaces_left
     }
-}
-
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, COLUMNS, MINES>
-{
+    
     pub fn blank() -> Self
     {
         let mut new = Self {
@@ -377,6 +356,26 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
 
         new
     }
+    
+    pub fn adjs(r: usize, c: usize) -> Vec<(usize, usize)>
+    {
+        let mut adjs = Vec::<(usize, usize)>::new();
+        let is_valid = |pos: &(usize, usize)| pos != &(r, c) && pos.0 < ROWS && pos.1 < COLUMNS;
+        let lbndr = if r == 0 { r } else { r - 1 };
+        let lbndc = if c == 0 { c } else { c - 1 };
+        for adjr in lbndr..=(r + 1)
+        {
+            for adjc in lbndc..=(c + 1)
+            {
+                let pos = (adjr, adjc);
+                if is_valid(&pos)
+                {
+                    adjs.push(pos);
+                }
+            }
+        }
+        adjs
+    }
 
     fn refresh_vals(&mut self)
     {
@@ -386,36 +385,16 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Board<ROWS, CO
         {
             for c in 0..COLUMNS
             {
-                if self[[r, c]].flagged
+                if self[(r, c)].flagged
                 {
                     self.flags_left -= 1;
                 }
-                if self[[r, c]].opened
+                if self[(r, c)].opened
                 {
                     self.spaces_left -= 1;
                 }
             }
         }
-    }
-
-    fn adjs(r: usize, c: usize) -> Vec<[usize; 2]>
-    {
-        let mut adjs = Vec::<[usize; 2]>::new();
-        let is_valid = |pos: &[usize; 2]| pos != &[r, c] && pos[0] < ROWS && pos[1] < COLUMNS;
-        let lbndr = if r == 0 { r } else { r - 1 };
-        let lbndc = if c == 0 { c } else { c - 1 };
-        for adjr in lbndr..=(r + 1)
-        {
-            for adjc in lbndc..=(c + 1)
-            {
-                let pos = [adjr, adjc];
-                if is_valid(&pos)
-                {
-                    adjs.push(pos);
-                }
-            }
-        }
-        adjs
     }
 }
 
@@ -428,23 +407,23 @@ impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Default
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Index<[usize; 2]>
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> Index<(usize, usize)>
     for Board<ROWS, COLUMNS, MINES>
 {
     type Output = Cell;
 
-    fn index(&self, idx: [usize; 2]) -> &Self::Output
+    fn index(&self, idx: (usize, usize)) -> &Self::Output
     {
-        &self.board[idx[0]][idx[1]]
+        &self.board[idx.0][idx.1]
     }
 }
 
-impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> IndexMut<[usize; 2]>
+impl<const ROWS: usize, const COLUMNS: usize, const MINES: usize> IndexMut<(usize, usize)>
     for Board<ROWS, COLUMNS, MINES>
 {
-    fn index_mut(&mut self, idx: [usize; 2]) -> &mut Self::Output
+    fn index_mut(&mut self, idx: (usize, usize)) -> &mut Self::Output
     {
-        &mut self.board[idx[0]][idx[1]]
+        &mut self.board[idx.0][idx.1]
     }
 }
 

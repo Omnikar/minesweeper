@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 mod board;
 
-use board::{BoardTrait, Cell};
+use board::Board;
 use std::io::{self, BufWriter, Write};
 use termion::{event::Key, input::TermRead, raw::IntoRawMode};
 
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
 
     macro_rules! run_diff {
         ($diff:ident) => {
-            run(Box::new(crate::board::difficulty::$diff::blank()), stdout)
+            run(crate::board::difficulty::$diff::blank(), stdout)
         };
     }
 
@@ -79,8 +79,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
     run_diff!(Beginner)
 }
 
-fn run(
-    mut board: Box<dyn BoardTrait<Output = Cell>>,
+fn run<const ROWS: usize, const COLUMNS: usize, const MINES: usize>(
+    mut board: Board<ROWS, COLUMNS, MINES>,
     mut stdout: impl Write,
 ) -> Result<(), Box<dyn std::error::Error>>
 {
@@ -165,7 +165,7 @@ fn run(
                 {
                     board.randomize();
                     board.set_nums();
-                    while board[[(csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize]].content()
+                    while board[((csr_pos.1 - 1) as usize, (csr_pos.0 - 1) as usize)].content()
                         != 0
                     {
                         board.randomize();
