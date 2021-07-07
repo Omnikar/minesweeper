@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>
         };
     }
 
-    write!(stdout, "{}", termion::cursor::Hide,)?;
+    write!(stdout, "{}", termion::cursor::Hide)?;
     render!();
     stdout.flush()?;
 
